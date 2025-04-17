@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "51accd5240890bd76f3daf1d45a821a5",
+    "content-hash": "88cf8ee6783ab11e0734ba06a91c03df",
     "packages": [
         {
             "name": "brick/math",
@@ -2742,6 +2742,58 @@
                 }
             ],
             "time": "2024-11-12T20:51:16+00:00"
+        },
+        {
+            "name": "ottosmops/pdftotext",
+            "version": "v2.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ottosmops/pdftotext.git",
+                "reference": "bf1dfcb346fc43a8f39c0ea007da521986df0a64"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ottosmops/pdftotext/zipball/bf1dfcb346fc43a8f39c0ea007da521986df0a64",
+                "reference": "bf1dfcb346fc43a8f39c0ea007da521986df0a64",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">= 7.2",
+                "symfony/process": ">=4.2"
+            },
+            "require-dev": {
+                "phpunit/phpunit": ">=8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Ottosmops\\Pdftotext\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "ak",
+                    "email": "kraenzle@k-r.ch",
+                    "homepage": "https://wwwk-r.ch"
+                }
+            ],
+            "description": "Extract text from PDF",
+            "homepage": "https://github.com/ottosmops/pdftotext",
+            "keywords": [
+                "anton",
+                "laravel",
+                "ottosmops",
+                "pdftotext"
+            ],
+            "support": {
+                "issues": "https://github.com/ottosmops/pdftotext/issues",
+                "source": "https://github.com/ottosmops/pdftotext/tree/v2.0.0"
+            },
+            "time": "2019-07-24T11:58:43+00:00"
         },
         {
             "name": "php-http/discovery",

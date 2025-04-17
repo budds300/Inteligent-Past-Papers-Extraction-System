@@ -102,7 +102,7 @@ class FileUploadController extends Controller
                 $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
                 $filePath = $extractPath . '/' . $file;
 
-                if (in_array($extension, ['pdf', 'docx', 'jpg', 'png'])) {
+                if (in_array($extension, ['pdf', 'docx', 'jpg', 'png', 'doc'])) {
                     // Ensure file path is relative to storage/app
                     ProcessDocumentJob::dispatch($filePath, $questionPaperId, $extension);
                 }

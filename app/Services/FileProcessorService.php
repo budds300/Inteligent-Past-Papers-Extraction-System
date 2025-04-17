@@ -10,6 +10,8 @@ use Spatie\PdfToText\Pdf;
 use PhpOffice\PhpWord\IOFactory as PhpWordIOFactory;
 use App\Services\OpenAIService;
 use App\Services\DeepSeekService;
+use Ottosmops\Pdftotext\Pdftotext;
+use Smalot\PdfParser\Parser;
 
 class FileProcessorService
 {
@@ -30,12 +32,50 @@ class FileProcessorService
             $textContent = null;
             $extractedFiles = [];
 
+            Log::info("Starting processing question paper ID: {$questionPaper->id}");
+            Log::debug("Processing file details:", [
+                'file_path' => $filePath,
+                'file_type' => $fileType,
+                'file_name' => $questionPaper->original_file_name
+            ]);
+            
+            // Check if file exists in storage
+            $fullStoragePath = storage_path('app/' . $filePath);
+            if (!file_exists($fullStoragePath)) {
+                Log::error("File not found at expected path: {$fullStoragePath}");
+                // Try to find the file in alternative locations
+                $possiblePaths = [
+                    $filePath,
+                    storage_path('app/' . $filePath),
+                    storage_path('app/public/' . $filePath),
+                    public_path('storage/' . $filePath)
+                ];
+                
+                $foundPath = null;
+                foreach ($possiblePaths as $path) {
+                    if (file_exists($path)) {
+                        $foundPath = $path;
+                        Log::debug("Found file at alternative path: {$path}");
+                        break;
+                    }
+                }
+                
+                if (!$foundPath) {
+                    throw new \Exception("File not found at any expected location");
+                }
+                
+                $fullStoragePath = $foundPath;
+            } else {
+                Log::debug("File found at expected path: {$fullStoragePath}");
+            }
+
             if ($fileType === 'zip') {
                 $extractedFiles = $this->extractZipFile($filePath);
                 foreach ($extractedFiles as $extractedFile) {
                     $this->processExtractedFile($extractedFile, $questionPaper);
                 }
                 $questionPaper->update(['processing_complete' => true]);
+                Log::info("Completed processing question paper ID: {$questionPaper->id}");
                 return true;
             } elseif ($fileType === 'pdf') {
                 $textContent = $this->extractPdfText($filePath);
@@ -44,26 +84,33 @@ class FileProcessorService
             } elseif ($fileType === 'image') {
                 $this->processImage($filePath, $questionPaper);
                 $questionPaper->update(['processing_complete' => true]);
+                Log::info("Completed processing question paper ID: {$questionPaper->id}");
                 return true;
             } else {
                 throw new \Exception("Unsupported file type: {$fileType}");
             }
 
             if ($textContent) {
+                Log::debug("Successfully extracted text content, length: " . strlen($textContent));
                 $extractedData = $this->extractDataWithAI($textContent);
                 if ($extractedData) {
                     $this->saveExtractedData($extractedData, $questionPaper);
                 }
+            } else {
+                Log::warning("No text content was extracted from the file");
             }
 
             $questionPaper->update(['processing_complete' => true]);
+            Log::info("Completed processing question paper ID: {$questionPaper->id}");
             return true;
         } catch (\Exception $e) {
             Log::error('File processing error: ' . $e->getMessage());
+            Log::error('Exception trace: ' . $e->getTraceAsString());
             $questionPaper->update([
                 'processing_complete' => true,
                 'processing_error' => $e->getMessage()
             ]);
+            Log::info("Completed processing question paper ID: {$questionPaper->id}");
             return false;
         }
     }
@@ -72,19 +119,38 @@ class FileProcessorService
     {
         $extractPath = storage_path('app/extracted_' . uniqid());
         $zip = new ZipArchive;
-
-        if ($zip->open(storage_path('app/' . $filePath)) === TRUE) {
-            $zip->extractTo($extractPath);
+        $fullPath = storage_path('app/' . $filePath);
+       
+        Log::debug("Attempting to open ZIP: {$fullPath}");
+       
+        if (!file_exists($fullPath)) {
+            Log::error("ZIP file does not exist: {$fullPath}");
+            throw new \Exception("ZIP file not found at {$fullPath}");
+        }
+       
+        $result = $zip->open($fullPath);
+        if ($result === TRUE) {
+            Log::debug("Creating extract path: {$extractPath}");
+            if (!file_exists($extractPath)) {
+                mkdir($extractPath, 0755, true);
+            }
+           
+            $extractResult = $zip->extractTo($extractPath);
+            if (!$extractResult) {
+                Log::error("Failed to extract ZIP to {$extractPath}");
+                throw new \Exception("Failed to extract ZIP contents");
+            }
+           
             $zip->close();
-
+           
             $extractedFiles = [];
             $this->scanDirectory($extractPath, $extractedFiles);
             return $extractedFiles;
+        } else {
+            Log::error("Failed to open ZIP file. Error code: {$result}");
+            throw new \Exception("Failed to open ZIP file. Error code: {$result}");
         }
-
-        throw new \Exception("Failed to extract zip file");
     }
-
     protected function scanDirectory($dir, &$results)
     {
         $files = scandir($dir);
@@ -144,35 +210,65 @@ class FileProcessorService
         }
     }
 
+     
     protected function extractPdfText($filePath)
     {
         $fullPath = is_file($filePath) ? $filePath : storage_path('app/' . $filePath);
         try {
-            $text = (new Pdf())
-                ->setPdf($fullPath)
-                ->text();
-
-            if (empty(trim($text))) {
-                $parser = new \Smalot\PdfParser\Parser();
-                $pdf = $parser->parseFile($fullPath);
-                $text = $pdf->getText();
+            // Try using ottosmops/pdftotext first
+            try {
+                $pdfToText = new Pdftotext($fullPath);
+                $text = $pdfToText->getText();
+                
+                if (!empty(trim($text))) {
+                    Log::debug("Successfully extracted text using ottosmops/pdftotext, length: " . strlen($text));
+                    return $text;
+                }
+            } catch (\Exception $innerException) {
+                Log::warning('ottosmops/pdftotext extraction failed: ' . $innerException->getMessage() . '. Falling back to Smalot PDF Parser.');
             }
-
+            
+            // Fallback to Smalot PDF Parser if ottosmops fails
+            $parser = new Parser();
+            $pdf = $parser->parseFile($fullPath);
+            $text = $pdf->getText();
+            
+            Log::debug("Successfully extracted text using Smalot PDF Parser, length: " . strlen($text));
             return $text;
         } catch (\Exception $e) {
             Log::error('PDF extraction error: ' . $e->getMessage());
             throw $e;
         }
     }
-
     protected function extractDocxText($filePath)
     {
-        $fullPath = is_file($filePath) ? $filePath : storage_path('app/' . $filePath);
-        try {
-            $phpWord = PhpWordIOFactory::load($fullPath);
-            $text = '';
+            // Try multiple possible paths
+    $possiblePaths = [
+        $filePath,
+        storage_path('app/' . $filePath),
+        storage_path('app/public/' . $filePath),
+        public_path('storage/' . $filePath)
+    ];
+    
+    $foundPath = null;
+    foreach ($possiblePaths as $path) {
+        if (file_exists($path)) {
+            $foundPath = $path;
+            Log::debug("Found DOCX file at: {$path}");
+            break;
+        }
+    }
+    
+    if (!$foundPath) {
+        Log::error("DOCX file not found at any expected location. Original path: {$filePath}");
+        throw new \Exception("Cannot find archive file");
+    }
+    
+    try {
+        $phpWord = PhpWordIOFactory::load($foundPath);
+        $text = '';
 
-            foreach ($phpWord->getSections() as $section) {
+        foreach ($phpWord->getSections() as $section) {
                 foreach ($section->getElements() as $element) {
                     if (method_exists($element, 'getText')) {
                         $text .= $element->getText() . ' ';

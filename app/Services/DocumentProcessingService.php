@@ -41,6 +41,9 @@ class DocumentProcessingService
                 case 'docx':
                     $extractedText = $this->extractTextFromDocx($filePath);
                     break;
+                case 'doc':
+                    $extractedText = $this->extractTextFromDocx($filePath);
+                    break;
                 case 'jpg':
                 case 'png':
                     return $this->processImage($filePath, $questionPaperId);

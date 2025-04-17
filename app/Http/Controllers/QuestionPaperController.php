@@ -96,9 +96,9 @@ class QuestionPaperController extends Controller
      */
     public function apiUpload(Request $request)
     {
-          // Debug information
-    \Log::debug('Request data:', $request->all());
-    \Log::debug('Files:', $request->allFiles());
+        // Debug information
+        \Log::debug('Request data:', $request->all());
+        \Log::debug('Files:', $request->allFiles());
         $validator = Validator::make($request->all(), [
             'file' => 'required|file|max:50000|mimes:zip,pdf,docx,doc,jpeg,jpg,png',
             'title' => 'nullable|string|max:255',
@@ -117,8 +117,65 @@ class QuestionPaperController extends Controller
         $originalFileName = $file->getClientOriginalName();
         $fileType = $this->determineFileType($file->getClientOriginalExtension());
         
-        // Store file
-        $path = $file->store('question_papers');
+        \Log::debug('File details before storage:', [
+            'original_name' => $originalFileName,
+            'mime_type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'file_type' => $fileType
+        ]);
+        
+        // Check storage directory permissions first
+        $storageDir = storage_path('app/question_papers');
+        if (!is_dir($storageDir)) {
+            try {
+                mkdir($storageDir, 0755, true);
+                \Log::debug('Created storage directory: ' . $storageDir);
+            } catch (\Exception $e) {
+                \Log::error('Failed to create storage directory: ' . $e->getMessage());
+            }
+        }
+        
+        \Log::debug('Storage directory exists: ' . (is_dir($storageDir) ? 'Yes' : 'No'));
+        \Log::debug('Storage directory writable: ' . (is_writable($storageDir) ? 'Yes' : 'No'));
+        
+        // Try direct file saving approach
+        try {
+            $filename = uniqid() . '_' . $originalFileName;
+            $path = 'question_papers/' . $filename;
+            $fullStoragePath = storage_path('app/' . $path);
+            
+            // Move the uploaded file directly
+            if (move_uploaded_file($file->getRealPath(), $fullStoragePath)) {
+                \Log::debug('File moved successfully to: ' . $fullStoragePath);
+            } else {
+                \Log::error('Failed to move uploaded file. Permissions issue likely.');
+                
+                // Fallback to Laravel's store method
+                $path = $file->store('question_papers');
+                $fullStoragePath = storage_path('app/' . $path);
+                \Log::debug('Fallback method used. File path: ' . $path);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error saving file: ' . $e->getMessage());
+            
+            // Last resort - try Storage facade
+            try {
+                $path = 'question_papers/' . uniqid() . '_' . $originalFileName;
+                \Storage::put($path, file_get_contents($file->getRealPath()));
+                $fullStoragePath = storage_path('app/' . $path);
+                \Log::debug('Storage facade method used. File path: ' . $path);
+            } catch (\Exception $e2) {
+                \Log::error('All file storage methods failed: ' . $e2->getMessage());
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Failed to save uploaded file due to storage issues.'
+                ], 500);
+            }
+        }
+        
+        // Verify file was stored successfully
+        \Log::debug('File exists check: ' . (file_exists($fullStoragePath) ? 'Yes' : 'No'));
+        \Log::debug('File size: ' . (file_exists($fullStoragePath) ? filesize($fullStoragePath) : 'N/A'));
         
         // Create question paper record
         $questionPaper = QuestionPaper::create([
@@ -127,6 +184,12 @@ class QuestionPaperController extends Controller
             'original_file_name' => $originalFileName,
             'original_file_type' => $fileType,
             'processing_complete' => false,
+        ]);
+        
+        \Log::debug('Created question paper record:', [
+            'id' => $questionPaper->id,
+            'file_path' => $questionPaper->original_file_path,
+            'file_type' => $questionPaper->original_file_type
         ]);
         
         // Dispatch job to process the file

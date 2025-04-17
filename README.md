@@ -1,79 +1,105 @@
 # Intelligent Past Papers Extraction System
 
-A Laravel-based web application for uploading, extracting, and managing exam papers using AI (OpenAI & DeepSeek).
+## Overview
+
+The Intelligent Past Papers Extraction System is a Laravel-based application that leverages AI (OpenAI) to extract structured data from exam papers. This system processes various document formats and organizes the content into a searchable database.
+
+## Prerequisites
+
+- PHP 8.2 or higher
+- Composer
+- MySQL or another supported database
+- Web server (Apache, Nginx, etc.)
+- Valid API keys for OpenAI
+
+# 🧠 Intelligent Past Papers Extraction System
+
+## 📄 Overview
+
+The Intelligent Past Papers Extraction System is a Laravel-based application that leverages AI (OpenAI) to extract structured data from exam papers. This system processes various document formats and organizes the content into a searchable database.
 
 ---
 
-## Features
+## 🛠️ Prerequisites
 
-- **Upload Exam Papers:** Supports PDF, DOCX, ZIP, and image files (JPG, PNG).
-- **AI Extraction:** Automatically extracts questions, answers, and metadata using OpenAI and DeepSeek APIs.
-- **Background Processing:** Uses Laravel Jobs and Queues for scalable, asynchronous file processing.
-- **Question Paper Management:** Browse, search, and view extracted question papers and their content.
-- **API Support:** REST endpoints for uploading and fetching question paper data.
-
----
-
-## How It Works
-
-1. **Upload:**  
-   Users upload a file (PDF, DOCX, ZIP, or image) via web or API.
-
-2. **Storage:**  
-   The file is saved, and a `QuestionPaper` record is created.
-
-3. **Processing:**  
-   A background job (`ProcessQuestionPaperJob`) is dispatched to process the upload.
-
-4. **Extraction:**  
-   - ZIP files are extracted; each file is processed individually.
-   - PDFs/DOCX are parsed for text.
-   - Images are analyzed using AI.
-
-5. **AI Extraction:**  
-   Extracted text is sent to OpenAI and/or DeepSeek for question, answer, and metadata extraction.
-
-6. **Data Storage:**  
-   Extracted questions, answers, images, and metadata are saved and linked to the `QuestionPaper`.
-
-7. **Review:**  
-   Users can view and manage extracted content via the web interface.
+- PHP 8.2 or higher  
+- Composer  
+- MySQL or another supported database  
+- Web server (Apache, Nginx, etc.)  
+- Valid API keys for OpenAI  
 
 ---
 
-## Project Structure
+## ⚙️ Installation
 
-- `app/Http/Controllers/` — Handles HTTP requests (file uploads, paper viewing).
-- `app/Services/` — File and AI processing logic (`FileProcessorService`, `OpenAiService`, `DeepSeekService`).
-- `app/Jobs/` — Background jobs for processing uploads (`ProcessQuestionPaperJob`, `ProcessDocumentJob`).
-- `resources/views/` — Blade templates for the web UI.
-- `routes/web.php` & `routes/api.php` — Web and API routes.
+```bash
+# Clone the repository
+git clone https://github.com/budds300/Inteligent-Past-Papers-Extraction-System.git
+cd Inteligent-Past-Papers-Extraction-System
 
----
+# Install dependencies
+composer install
 
-## Environment Variables
+# Copy environment file and configure
+cp .env.example .env
+# Edit .env with your database credentials and API keys
 
-Add these to your `.env` file:
+# Generate application key
+php artisan key:generate
+
+# Run migrations
+php artisan migrate
+
+# Create storage link
+php artisan storage:link
+
+# Start the development server
+php artisan serve
+
+## Configuration
+
+Edit your `.env` file to include the necessary API keys:
 
 ```env
 DEEPSEEK_API_KEY=your_deepseek_api_key
 OPENAI_API_KEY=your_openai_api_key
 
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=exam_extraction
-DB_USERNAME=root
-DB_PASSWORD=
+# 🚀 Advanced Features
+
+## 📡 API Access
+
+The system provides API endpoints for programmatic access:
 
 ---
 
-## Setup & Usage
+### 📤 Upload API
 
-### 1. Install Dependencies
+**Endpoint:**  
+`POST /api/question-papers/upload`
 
-Install PHP dependencies via Composer and JavaScript dependencies via npm:
+**Description:**  
+Send a file and metadata as `multipart/form-data`.
+
+**Response:**  
+Returns JSON with:
+- Processing status
+- Paper ID
+
+---
+
+### 📥 Status API
+
+**Endpoint:**  
+`GET /api/question-papers/{id}`
+
+**Description:**  
+Returns JSON with extraction results if processing is complete.
+
+---
+
+## ⚙️ Queue Management
+
+For high-volume environments, configure queue workers:
 
 ```bash
-composer install
-npm install && npm run dev
+php artisan queue:work
