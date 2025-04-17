@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessQuestionPaperJob;
 use App\Models\QuestionPaper;
 use App\Jobs\ProcessQuestionPaper;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class QuestionPaperController extends Controller
             ->latest()
             ->paginate(10);
             
-        return view('question-papers.index', compact('questionPapers'));
+        return view('question_papers.index', compact('questionPapers'));
     }
 
     /**
@@ -27,7 +28,7 @@ class QuestionPaperController extends Controller
      */
     public function create()
     {
-        return view('question-papers.create');
+        return view('question_papers.create');
     }
 
     /**
@@ -63,9 +64,9 @@ class QuestionPaperController extends Controller
         ]);
         
         // Dispatch job to process the file
-        ProcessQuestionPaper::dispatch($questionPaper);
+        ProcessQuestionPaperJob::dispatch($questionPaper);
         
-        return redirect()->route('question-papers.show', $questionPaper)
+        return redirect()->route('question_papers.show', $questionPaper)
             ->with('success', 'Question paper uploaded successfully. Processing started in the background.');
     }
 
@@ -87,7 +88,7 @@ class QuestionPaperController extends Controller
             'images'
         ]);
         
-        return view('question-papers.show', compact('questionPaper'));
+        return view('question_papers.show', compact('questionPaper'));
     }
     
     /**
@@ -95,12 +96,16 @@ class QuestionPaperController extends Controller
      */
     public function apiUpload(Request $request)
     {
+          // Debug information
+    \Log::debug('Request data:', $request->all());
+    \Log::debug('Files:', $request->allFiles());
         $validator = Validator::make($request->all(), [
             'file' => 'required|file|max:50000|mimes:zip,pdf,docx,doc,jpeg,jpg,png',
             'title' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
+            \Log::error('Validation failed: ' . json_encode($validator->errors()));
             return response()->json([
                 'status' => 'error',
                 'message' => 'Validation failed',
@@ -125,7 +130,7 @@ class QuestionPaperController extends Controller
         ]);
         
         // Dispatch job to process the file
-        ProcessQuestionPaper::dispatch($questionPaper);
+        ProcessQuestionPaperJob::dispatch($questionPaper);
         
         return response()->json([
             'status' => 'success',

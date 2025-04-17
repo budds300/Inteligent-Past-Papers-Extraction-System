@@ -22,14 +22,28 @@ class OpenAIService
                 'messages' => [
                     [
                         'role' => 'system',
-                        'content' => 'You are an AI expert in exam paper extraction. Extract questions, sub-questions, answers, and metadata from the provided text. Format your response as JSON.'
+                        'content' => 'You are an AI expert in exam paper extraction, specializing in Kenyan 8-4-4 and CBC curriculum formats. Extract questions, sub-questions, answers, and metadata from the provided text. Format your response as JSON with precise hierarchical relationships between questions.'
                     ],
                     [
                         'role' => 'user',
                         'content' => "Extract the following from this exam paper text and format as JSON:\n\n" . 
-                            "1. metadata (examiner, subject, class, term, year, curriculum as either 'CBC' or '8-4-4', paper type)\n" .
-                            "2. questions array (include question_number, content, nesting_level where 0 is main question, 1 is sub-question, 2 is sub-sub-question)\n" .
-                            "3. answers array (matching to questions by question_number)\n\n" .
+                            "1. metadata object with these fields:\n" .
+                            "   - examiner (the organization that created the exam)\n" .
+                            "   - subject (e.g., Mathematics, English, Science)\n" .
+                            "   - class (e.g., Grade 4, Form 2, Standard 7)\n" .
+                            "   - term (e.g., Term 1, Term 2, Term 3)\n" .
+                            "   - year (the year the exam was created)\n" .
+                            "   - curriculum (must be either 'CBC' or '8-4-4')\n" .
+                            "   - paper_type (e.g., Paper 1, Paper 2, Practical)\n\n" .
+                            "2. questions array with these fields for each question:\n" .
+                            "   - question_number (e.g., 1, 2, 3 or 1a, 1b, etc.)\n" .
+                            "   - content (the question text)\n" .
+                            "   - marks (if specified, otherwise null)\n" .
+                            "   - nesting_level (0 for main questions, 1 for sub-questions, 2 for sub-sub-questions)\n" .
+                            "   - parent_question_number (for sub-questions, reference the parent question number, null for main questions)\n\n" .
+                            "3. answers array with these fields for each answer:\n" .
+                            "   - question_number (matching the question this answer belongs to)\n" .
+                            "   - content (the answer text)\n\n" .
                             "Text: " . $text
                     ]
                 ],

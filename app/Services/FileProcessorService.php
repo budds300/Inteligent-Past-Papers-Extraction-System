@@ -245,12 +245,13 @@ class FileProcessorService
 
     protected function extractDataWithAI($textContent)
     {
+        // Specifically use OpenAI for extraction
         $extractedData = $this->openAIService->extractQuestionData($textContent);
-
+        
         if (!$extractedData) {
-            $extractedData = $this->deepSeekService->extractQuestionData($textContent);
+            Log::warning('OpenAI extraction failed or returned empty data');
         }
-
+        
         return $extractedData;
     }
 
